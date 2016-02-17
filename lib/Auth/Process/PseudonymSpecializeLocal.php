@@ -1,14 +1,15 @@
 <?php
 /**
- * Filter to decrypt Encrypted Pseudonyms
+ * Filter to specialize polymorphic pseudonyms locally
  * 
  * @author Hans Harmannij
  */
-class sspmod_polypseud_Auth_Process_PseudonymSpecialize extends SimpleSAML_Auth_ProcessingFilter {
+class sspmod_polypseud_Auth_Process_PseudonymSpecializeLocal extends SimpleSAML_Auth_ProcessingFilter {
 
     private $in_attribute = 'nameid';
     private $out_attribute = 'pseudonym';
-    private $pf_url;
+    private $dp;
+    private $dk;
 
     public function __construct($config, $reserved) {
         parent::__construct($config, $reserved);
@@ -19,39 +20,18 @@ class sspmod_polypseud_Auth_Process_PseudonymSpecialize extends SimpleSAML_Auth_
         if (array_key_exists('outAttribute', $config)) {
             $this->out_attribute = $config['outAttribute'];
         }
-        if (array_key_exists('pfURL', $config)) {
-            $this->pf_url = $config['pfURL'];
+        if (array_key_exists('Dp', $config)) {
+            $this->dp = $config['Dp'];
         }
         else {
-            throw new SimpleSAML_Error_Exception('PseudonymSpecialize config does not contain a pfURL');
+            throw new SimpleSAML_Error_Exception('PseudonymSpecializeLocal config does not contain a Dp');
         }
-    }
-
-    private function specialize($pp, $sp) {
-        $ch = curl_init();
-
-        $url = str_replace('%PP%', urlencode($pp), $this->pf_url);
-        $url = str_replace('%SP%', urlencode($sp), $url);
-
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_HEADER, 0);
-        curl_setopt($ch, CURLOPT_FAILONERROR, 1);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-
-        $ep = curl_exec($ch);
-
-        $curlError = false;
-        if($ep === false) {
-            $curlError = curl_error($ch);
+        if (array_key_exists('Dk', $config)) {
+            $this->dk = $config['Dk'];
         }
-
-        curl_close($ch);
-
-        if($curlError) {
-            throw new SimpleSAML_Error_Exception("Error specializing polymorphic pseudonym '$pp'.\n$curlError");
+        else {
+            throw new SimpleSAML_Error_Exception('PseudonymSpecializeLocal config does not contain a Dk');
         }
-
-        return $ep;
     }
 
     public function process(&$request) {
@@ -69,11 +49,11 @@ class sspmod_polypseud_Auth_Process_PseudonymSpecialize extends SimpleSAML_Auth_
                 $sp = $request['core:SP'];
             }
             else {
-                throw new SimpleSAML_Error_Exceptioin('No SP id found for specializing pseudonym'); 
+                throw new SimpleSAML_Error_Exception('No SP id found for specializing pseudonym'); 
             }
 
 	        SimpleSAML_Logger::debug("PolyPseud specializing pseudonym from attribute $this->in_attribute");
-            $attributes[$this->out_attribute] = array($this->specialize($attributes[$this->in_attribute][0], $sp));
+            $attributes[$this->out_attribute] = array(polypseud_specialize($attributes[$this->in_attribute][0], $sp, $this->dp, $this->dk));
         }
         else {
             throw new SimpleSAML_Error_Exception('Could not specialize the polymorphic pseudonym. inAttribute is missing');

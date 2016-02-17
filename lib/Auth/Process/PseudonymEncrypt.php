@@ -1,6 +1,6 @@
 <?php
 /**
- * Filter to decrypt Encrypted Pseudonyms
+ * Filter to generate Polymorphic Pseudonyms
  * 
  * @author Hans Harmannij
  */
